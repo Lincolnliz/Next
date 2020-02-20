@@ -1,0 +1,42 @@
+lc =pd.read_csv('D:/LsWS/ppd/LC.csv',encoding = "utf8")
+plt.rcParams['font.sans-serif'] = ['SimHei']
+plt.rcParams['axes.unicode_minus'] = False
+rz = ['手机认证','户口认证','视频认证','学历认证','征信认证','淘宝认证']
+
+#历史逾期率计算
+lc['历史逾期率'] = lc['历史正常还款期数'] / (lc['历史正常还款期数']+lc['历史逾期还款期数'])
+#年龄切割
+age = lc['年龄']
+age_cut = pd.cut(age,bins=[18,22,28,35,42,50,60],right=False,labels=['18-22','22-28','28-35','35-42','42-50','≥50'])
+lc['age_cut'] = age_cut
+#借款金额切割
+jkje = lc['借款金额']
+jkje_cut = pd.cut(jkje,bins=[0,500,1000,2000,3000,4000,5000,8000,10000,80000,300000,500000],right=False,
+                  labels=['<500','500-1000','1000-2000','2000-3000','3000-4000','4000-5000','5000-8000','8000-10000',
+                         '10000-80000','80000-300000','≥300000'])
+lc['jkje_cut'] = jkje_cut
+#利率切割
+profit=lc['借款利率']
+profit_cut = pd.cut(profit,bins =[0,7,10,13,16,19,22,24],right=False,labels = 
+                    ['＜7%','7%-10%','10%-13%','13%-16%','16%-19%','19%-22%','22%-24%'])
+lc['profit_cut'] = profit_cut
+d={'未成功认证':False,'成功认证':True}
+lc['认证信息汇总']=(lc[rz].replace(d)).agg(sum,axis=1)
+feature1 = ['借款金额','借款期限','借款利率','历史逾期率','认证信息汇总']
+feature2 =['初始评级','借款类型','是否首标','性别','age_cut','profit_cut','jkje_cut']
+
+#(lc[rz].iloc[:10,:10]).apply(lambda row:rzinfo(row['手机认证'],row['户口认证'],row['视频认证']
+#,row['学历认证'],row['征信认证'],row['淘宝认证']),axis=1)
+t1 = pd.crosstab(lc['借款期限'],lc['jkje_cut'],margins=True)
+#plt.subplots(figsize=(9,9))
+#t1.columns
+#Index(['APP闪电', '其他', '普通', '电商', 'All'], dtype='object', name='借款类型')
+#t1.index
+#Index([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 17, 18, 20, 21, 24, 'All'], dtype='object', name='借款期限')
+#sns.heatmap(lc['jkje_cut'],cmap="YlOrRd",annot=True)
+"""
+df = pd.crosstab(lc['jkje_cut'],lc['profit_cut'])
+print(df.iat[5,5])
+sns.heatmap(df,cmap="Blues",annot=True)
+
+lc[['jkje_cut']]
