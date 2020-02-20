@@ -1,0 +1,47 @@
+import torch
+import numpy as np
+#任务说明书：一个全连接的ReLU神经网络，一个隐藏层，没有bias，用x来预测y,使用L2 Loss
+#Tips:Model = 定义参数→Architecture[两层神经网络中间一个ReLU] + 训练出→Parameters
+#【如何训练出parameters:
+#先过一个forward pass 算出predictions,再拿预测和标准的label算一个loss function
+#loss拿到之后再backward算一个gradient出来】
+
+#权重参数学习：为什么要用权重，用它代表什么
+#要做的事情：1000维的数据转化成10维的数据
+#forward pass -->  compute loss  -->backward loss  -->compute the gradient  
+#-->update weights of w1 and w2 
+N,D_in,H,D_out = 64,1000,100,10  
+#假设一共64个输入/batch，输入1000维，输出10维 中间hidden states 100
+#随机创建训练数据
+x = np.random.randn(N,D_in)
+y = np.random.randn(N,D_out)
+w1 = np.random.randn(D_in,H)
+w2 = np.random.randn(H,D_out)
+learning_rate = 1e-6
+#配置完参数，考虑训练多少回？
+for it in range(500): 
+#如何forward pass（数据与权重需要干嘛）先把hidden states拿出来
+    h = x.dot(w1)                 # 结果：拿到一个 N * H 的vector
+    h_relu = np.maximum(h,0)      # 激活函数
+    y_pred = h_relu.dot(w2)       # 计算Y_prediction  N * D_out
+#compute loss by MSEloss
+    loss = np.square(y_pred - y).sum()
+    print(it,loss)
+#backward pass
+#compute the gradient   gradient 梯度怎么算？正向传播，一路往回跑
+#back progation怎么做的？一步一步求导
+#How:y = ax+b   dy/dx =a    meanwhile   dy/da = x
+#梯度计算--求方向导数/梯度 【grad_h||grad_y_pred||grad_w2 ||grad_h_relu || grad_w1】
+
+    grad_y_pred = 2.0 * (y_pred - y)
+    grad_w2 = h_relu.T.dot(grad_y_pred)       
+#relu函数导数怎么变化的   小于0的时候都是0；大于0的时候都是1
+    grad_h_relu = grad_y_pred.dot(w2.T)
+    grad_h = grad_h_relu.copy()
+    grad_h[h<0] = 0
+    grad_w1 = x.T.dot(grad_h)
+    
+#update weights of w1 and w2
+    w1 -= learning_rate * grad_w1
+    w2 -= learning_rate * grad_w2
+    
