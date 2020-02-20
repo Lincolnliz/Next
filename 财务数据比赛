@@ -1,0 +1,15 @@
+import tushare as ts
+import xlrd
+import pandas as pd
+import numpy as np
+df = pd.read_excel('./国债.xlsx')
+#df.B.apply(lambda x: 1 if'国债'in x else 0)
+df[(df.I=='10')&(df.B.apply(lambda x :1 if '国债' in x else 0))&(df.M.apply(lambda y :1 if '2017' in y else 0))]
+
+
+
+	Id 	A 	B 	C 	D 	E 	F 	G 	H 	I 	J 	K 	L 	M
+76 	76 	019558 	17国债04 	100 	3.4 	1.33 	101.33 	720 	100 	10 	2027/2/9 	3.4 	按半年付息 	2017/2/9
+81 	81 	019564 	17国债10 	96.39 	3.99 	0.54 	96.93 	1093.8 	100 	10 	2027/5/4 	3.52 	按半年付息 	2017/5/4
+88 	88 	019572 	17国债18 	97.07 	3.96 	1.47 	98.54 	1121.7 	100 	10 	2027/8/3 	3.59 	按半年付息 	2017/8/3
+95 	95 	019580 	17国债25 	100 	3.82 	0.61 	100.61 	782.8 	100 	10 	2027/11/2 	3.82 	按半年付息 	2017/11/2
