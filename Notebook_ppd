@@ -1,0 +1,122 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import datetime 
+import warnings
+warnings.filterwarnings('ignore')
+from sklearn.preprocessing import LabelEncoder
+from sklearn.linear_model.logistic import LogisticRegression
+from sklearn.ensemble import GradientBoostingClassifier,RandomForestClassifier
+from sklearn.model_selection import train_test_split,cross_val_score,GridSearchCV
+from sklearn.metrics import roc_curve,confusion_matrix,classification_report,roc_auc_score, precision_score, recall_score, accuracy_score, auc
+
+loan_lc =pd.read_csv('D:/LsWS/ppd/LC.csv',encoding = "utf8")
+loan_lp = pd.read_csv('D:/LsWS/ppd/LP.csv',encoding = "utf8")
+
+#CSV文件自调用设置第一列为索引
+loan_lc =loan_lc.set_index('ListingId')
+#日期格式转换
+loan_lc['借款成功日期'] = pd.to_datetime(loan_lc['借款成功日期'])
+loan_lp['到期日期'] = pd.to_datetime(loan_lp['到期日期'])
+loan_lp['还款日期'] = pd.to_datetime(loan_lp['还款日期'].replace('\\N','2017-1-31'))
+loan_lp['recorddate'] = datetime.datetime(2017,2,22)
+loan_lp['逾期天数'] = (loan_lp['还款日期'] - loan_lp['到期日期'])/np.timedelta64(1,'D')
+loan_lp['逾期天数'] = np.where(loan_lp['逾期天数']<0,0,loan_lp['逾期天数'])
+#从未结清贷款中提取已还期数【字段：未结清贷款loan_unsettled】
+loan_unsettled = loan_lp[(loan_lp['还款状态']!=3)&(loan_lp['剩余利息'] > 0)].groupby('ListingId')['期数'].min().reset_index()
+#print("preview")
+#print(loan_unsettled)
+
+loan_unsettled['已还期数'] = loan_unsettled['期数'] - 1
+del loan_unsettled['期数']
+loan_unsettled = loan_unsettled.set_index('ListingId')
+loan1 = pd.concat([loan_lc,loan_unsettled],axis =1,join = 'outer')
+loan1.loc[loan1['已还期数'].isnull(),'已还期数'] = loan1[loan1['已还期数'].isnull()]['借款期限']
+
+#本笔贷款历史还款情况汇总
+#[1-替换缺失值2-统计总数3-统计中间变量[本笔已逾期次数]4-缺失值替换回来5-拼接]
+loan_lp['逾期天数'].replace(0,np.nan,inplace=True)
+loan_delay = loan_lp.groupby('ListingId')['逾期天数'].count()
+loan_delay.name = '本笔已逾期次数'
+loan_lp['逾期天数'].replace(np.nan,0,inplace = True)
+loan2 = pd.concat([loan1,loan_delay],axis = 1,join ='outer').fillna(0)
+#分组汇总
+group_loan1 = loan_lp.groupby('ListingId').agg({'剩余本金':'sum','剩余利息':'sum','还款状态':'max'})
+group_loan2 = loan_lp.drop(columns = loan_lp.columns[1:10]).groupby('ListingId').max()
+#统计数据-批处理--重命名-调用concat合并 X 2-group_loan & loan
+group_loan1.rename(columns={'剩余本金':'剩余未还本金','剩余利息':'剩余未还利息'},inplace = True)
+group_loan = pd.concat([group_loan1,group_loan2],axis =1)
+loan = pd.concat([loan2,group_loan],axis =1,join='outer')
+#计算历史逾期还款占比、年龄段、借款期限段、target、借款成功日期
+loan['历史逾期还款占比'] = (100 * loan['历史逾期还款期数']/(loan['历史逾期还款期数'] + loan['历史正常还款期数'])).round(2).fillna(0)
+loan['年龄段'] = pd.cut(loan['年龄'], bins=[15, 20, 25, 30, 35, 40, 45, 50, 60])
+loan['借款期限段'] = pd.cut(loan['借款期限'], bins=[3*i for i in range(9)])
+#PT.CUT 参数BIN设置↑
+loan['target'] = np.where((loan['逾期天数'] > 60) & (loan['剩余未还利息'] > 0), 1, 0)
+loan['借款成功日期'] =(loan['借款成功日期']-pd.to_datetime('2015-01-01'))/ (np.timedelta64(1,'D'))
+#借款金额集中分布在2000-4500之间，产品应是小额现金贷和消费贷为主
+
+
+
+
+
+plt.rcParams['font.sans-serif'] = ['SimHei']
+plt.rcParams['axes.unicode_minus'] = False
+#loan_lp = pd.read_csv('D:/LsWS/ppd/LP.csv',encoding = "utf8")
+
+#print(loan_lc['借款成功日期'])
+#print(loan_lp.columns,loan_lp.values)
+#merge_data = pd.merge(lc,lp,how='left')
+#年龄切割
+age = lc['年龄']
+age_cut = pd.cut(age,bins=[18,22,28,35,42,50,60],right=False,labels=['18-22','22-28','28-35','35-42','42-50','≥50'])
+lc['age_cut'] = age_cut
+#借款金额切割
+jkje = lc['借款金额']
+jkje_cut = pd.cut(jkje,bins=[0,500,1000,2000,3000,4000,5000,8000,10000,80000,300000,500000],right=False,
+                  labels=['<500','500-1000','1000-2000','2000-3000','3000-4000','4000-5000','5000-8000','8000-10000',
+                         '10000-80000','80000-300000','≥300000'])
+#jkje_cut.value_counts()
+lc['jkje_cut'] = jkje_cut
+#利率切割
+profit=lc['借款利率']
+profit_cut = pd.cut(profit,bins =[0,7,10,13,16,19,22,24],right=False,labels = 
+                    ['＜7%','7%-10%','10%-13%','13%-16%','16%-19%','19%-22%','22%-24%'])
+lc['profit_cut'] = profit_cut
+feature1 = ['借款金额','借款期限','借款利率','历史逾期率']
+feature2 =['初始评级','借款类型','是否首标','性别','age_cut','profit_cut','jkje_cut']
+feature = ['profit_cut']
+#历史逾期率计算
+lc['历史逾期率'] = lc['历史正常还款期数'] / (lc['历史正常还款期数']+lc['历史逾期还款期数'])
+#lc[features].hist(figsize=(16,9),grid=False)
+#sns.boxplot(x = lc['借款利率'])
+#print(lc[feature2].iloc[:,5])
+"""
+for i in range(len(feature2)):
+    print((lc[feature2].iloc[:,i]).value_counts())
+lc[feature2].head()
+
+#plt.savefig('./age_cut_hue.png')
+#sns.countplot(x='profit_cut',data=lc,ax=axes[1])
+"""
+"""
+sns.catplot(x="初始评级",y="历史逾期率",hue="性别",col="age_cut",col_wrap=4,height=2.5,aspect=.8,data=lc)
+plt.savefig('./评级历史逾期率性别年龄.png')
+print("test")
+
+_,axes = plt.subplots(nrows=1,ncols=2,figsize=(12,4))
+sns.countplot(x='性别',data=lc,ax=axes[0])
+sns.countplot(x='age_cut',data=lc,ax=axes[1])
+
+#多变量(multivariate)可视化
+plt.subplots(figsize=(9,9))#会使得整个画面等比例放大
+numerical = list(set(lc[feature1]))
+corr_matrix = lc[numerical].corr()
+sns.heatmap(corr_matrix,annot = True,vmax=1,square=True,cmap="Blues")
+#plt.savefig('./相关性分析.png')
+"""
+#plt.subplots(figsize=(9,9))
+#col_wrap控制每行子图数量，size控制子图高度
+sns.lmplot(x='历史逾期率',y='借款金额',col="age_cut",hue="性别",data=lc,col_wrap=3,size=3,palette="Set1")
+plt.savefig('./年龄逾期金额.png')
