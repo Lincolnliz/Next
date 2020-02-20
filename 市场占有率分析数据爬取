@@ -1,0 +1,72 @@
+import requests
+import pandas as pd
+import time
+from lxml import etree
+from fake_useragent import UserAgent
+import os
+ 
+headers ={'Cookie':'scrolltop=552; __jsluid=f5d2368b87c3beabdb0c1099f713f1fa; gr_user_id=a8f3d551-d6ad-44f7-8f83-37a503283b0d; tp_sid=ca92258bad801b1c; _ga=GA1.2.291064707.1548835781; NTKF_T2D_CLIENTID=guestE792E029-8509-4B85-3AFC-FFA3B934E6B8; _gid=GA1.2.1800137819.1552456081; advidadcolumn47=0; wdzj_session_source=https%253A%252F%252Fwww.wdzj.com%252F; WDZJptlbs=1; PHPSESSID=4obamvmbpkj4eotcm2rnlcpda6; Hm_lvt_9e837711961994d9830dcd3f4b45f0b3=1550477146,1552360842,1552456081,1552544888; _pk_ref.1.b30f=%5B%22%22%2C%22%22%2C1552544888%2C%22https%3A%2F%2Fwww.baidu.com%2Flink%3Furl%3D3vOZq_zVasG2oSVnLrAOjnRgUZT6t7iIvwQdkzLYRjhjcfsNU_6nAJlMyFtDMckIXqFNKLf3dGBGnKLX0hVBAa%26wd%3D%26eqid%3Da485e6f2000324e6000000035c889986%22%5D; _pk_ses.1.b30f=*; gr_session_id_1931ea22324b4036a653ff1d3a0b4693=c1ef10b0-eb97-430d-88f2-2dce5adfd197; gr_session_id_1931ea22324b4036a653ff1d3a0b4693_c1ef10b0-eb97-430d-88f2-2dce5adfd197=true; nTalk_CACHE_DATA={uid:kf_10132_ISME9754_guestE792E029-8509-4B,tid:1552544888587756}; _pk_id.1.b30f=a2b510eb78e2b95e.1525657632.83.1552545395.1552544888.; Hm_lpvt_9e837711961994d9830dcd3f4b45f0b3=1552545395',
+          }
+ 
+file_name = []#给每一个参数设定列表存储
+file_pingji = []
+file_lilv = []
+#/html/body/div[4]/div[2]/div[3]/div[2]/ul/li[4]/div[2]/a/div[1]
+file_yue = []
+file_address = []
+#/html/body/div[4]/div[2]/div[3]/div[2]/ul/li[4]/div[2]/a/div[3]
+file_time = []
+file_pingfen = []
+file_yinxiang = []
+ 
+def get_p2p_info(page):#循环爬取的函数
+    for j in range(page):
+        ua = UserAgent()#随机生成UA
+        headers['User-Agent']=ua.random
+        url = 'https://www.wdzj.com/dangan/search?filter=e1&currentPage={}'.format(j+1)
+        response = requests.get(url,headers = headers).text
+        s = etree.HTML(response)
+#平台XPATH: //*[@id="showTable"]/ul/li/div[1]/h2/a/text()
+#PPmoney:/html/body/div[4]/div[2]/div[3]/div[2]/ul/li[1]/div[1]/h2/a
+#众房宝：/html/body/div[4]/div[2]/div[3]/div[2]/ul/li[2]/div[1]/h2/a
+#利率XPATH：//*[@id="showTable"]/ul/li/div[2]/a/div[1]/label/em/text()
+#PPmoney：/html/body/div[4]/div[2]/div[3]/div[2]/ul/li[1]/div[2]/a/div[1]/label/em
+#众房宝：/html/body/div[4]/div[2]/div[3]/div[2]/ul/li[2]/div[2]/a/div[1]
+        file_name1 = s.xpath('//*[@id="showTable"]/ul/li/div[1]/h2/a/text()')
+        file_pingji1 = []#有些平台没有评级这一项，在进行excel存储是就会被后面平台的评级覆盖，所以这里使用列表来存储
+        for k in range(1,26):
+            file_pingji2 = s.xpath('//*[@id="showTable"]/ul/li[{}]/div[1]/div[1]/em/strong/text()'.format(k))
+            file_pingji1.append(file_pingji2)
+        file_lilv1 = s.xpath('//*[@id="showTable"]/ul/li/div[2]/a/div[1]/label/em/text()')
+        file_yue1 = s.xpath('//*[@id="showTable"]/ul/li/div[2]/a/div[2]/text()')
+        file_address1 = s.xpath('//*[@id="showTable"]/ul/li/div[2]/a/div[3]/text()')
+        file_time1 = s.xpath('//*[@id="showTable"]/ul/li/div[2]/a/div[4]/text()')
+        file_pingfen1 = s.xpath('//*[@id="showTable"]/ul/li/div[2]/a/div[5]/strong/text()')
+        file_yinxiang1 = []#网友印象是3条数据，采用列表存储
+        for i in range(1,26):
+            file_yinxiang2 = s.xpath('//*[normalize-space(@id)="showTable"]/ul/li[{}]/div[2]/a/div[5]/span/text()'.format(i))
+            file_yinxiang1.append(file_yinxiang2)  
+        file_name.extend(file_name1)
+        file_pingji.extend(file_pingji1)
+        file_lilv.extend(file_lilv1)
+        file_yue.extend(file_yue1)
+        file_address.extend(file_address1)
+        file_time.extend(file_time1)
+        file_pingfen.extend(file_pingfen1)
+        file_yinxiang.extend(file_yinxiang1)
+        print('正在爬取第%s页……'%str(j+1))
+        time.sleep(10)
+        
+if __name__ == '__main__': 
+    get_p2p_info(42)      
+    df = pd.DataFrame()
+    df["平台名称"]=pd.Series(file_name)
+    df["评级"]=pd.Series(file_pingji)
+    df["利率"]=pd.Series(file_lilv)
+    df["成交量"] = pd.Series(file_done)
+    df["借贷余额"]=pd.Series(file_yue)
+    df["注册地"]=pd.Series(file_address)
+    df["上线时间"]=pd.Series(file_time)
+    df["网友印象"]=pd.Series(file_yinxiang)
+    df["评分"]=pd.Series(file_pingfen)
+    df.to_excel('p2pMarket.xlsx')
