@@ -13,3 +13,33 @@ df[(df.I=='10')&(df.B.apply(lambda x :1 if '国债' in x else 0))&(df.M.apply(la
 81 	81 	019564 	17国债10 	96.39 	3.99 	0.54 	96.93 	1093.8 	100 	10 	2027/5/4 	3.52 	按半年付息 	2017/5/4
 88 	88 	019572 	17国债18 	97.07 	3.96 	1.47 	98.54 	1121.7 	100 	10 	2027/8/3 	3.59 	按半年付息 	2017/8/3
 95 	95 	019580 	17国债25 	100 	3.82 	0.61 	100.61 	782.8 	100 	10 	2027/11/2 	3.82 	按半年付息 	2017/11/2
+
+
+df = ts.get_stock_basics()
+xgjx = df[(df.name!='1')&(df.name.apply(lambda x:1 if '徐工机械' in x else 0))]
+zc = xgjx['totalAssets'].values.astype(int)
+df1 = df[(df.name!='1')&(df.totalAssets.apply(lambda x:1 if x<zc*1.2 and x>zc*0.8 else 0))]
+df1
+sns.set_style("whitegrid")
+plt.rcParams['font.sans-serif'] = ['SimHei']  # 中文字体设置-黑体
+plt.rcParams['axes.unicode_minus'] = False  # 解决保存图像是负号'-'显示为方块的问题
+sns.set(font='SimHei')  # 解决Seaborn中文显示问题
+
+sns.barplot(df1['name'],y=df1['fixedAssets'])
+plt.title('各企业固定资产柱状图')
+plt.xlabel('企业名称')
+plt.ylabel('固定资产')
+
+df = ts.get_k_data('600177','2007-01-01','2016-12-31',autype='None',ktype='M')
+df = df[(df.code=='600177')&(df.date.apply(lambda x:1 if '-12-' in x else 0))]
+df = df.sort_values(by='date',ascending=False)
+
+# import time
+# from datetime import datetime
+df = ts.get_k_data('000425','2013-01-01','2017-12-31',autype='hfq',ktype='M')
+df.date =pd.to_datetime(df.date,format = "%Y/%m/%d")
+#df.date = df.date.strftime("%Y/%m/%d")
+df.date = df.date.apply(lambda x:x.strftime("%Y/%m/%d"))
+df = df.sort_values(by='date',ascending=False)
+#df.to_excel('jieguo.xlsx',columns=('date','close'))
+#df
